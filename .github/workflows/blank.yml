@@ -37,8 +37,7 @@ jobs:
         find . -maxdepth 1 -name "*.xml" ! -name "AndroidManifest.xml" -exec mv {} app/src/main/res/xml/ \;
 
         # إنشاء ملف settings.gradle تلقائياً
-        if [ ! -f "settings.gradle" ]; then
-          cat << 'EOF' > settings.gradle
+        cat << 'EOF' > settings.gradle
         pluginManagement {
             repositories {
                 google()
@@ -47,7 +46,7 @@ jobs:
             }
         }
         dependencyResolutionManagement {
-            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
             repositories {
                 google()
                 mavenCentral()
@@ -56,11 +55,9 @@ jobs:
         rootProject.name = "PornBlocker"
         include ':app'
         EOF
-        fi
 
         # إنشاء ملف build.gradle الرئيسي تلقائياً
-        if [ ! -f "build.gradle" ]; then
-          cat << 'EOF' > build.gradle
+        cat << 'EOF' > build.gradle
         buildscript {
             ext.kotlin_version = '1.9.0'
             repositories {
@@ -79,7 +76,6 @@ jobs:
             }
         }
         EOF
-        fi
 
         # إنشاء ملف build.gradle الخاص بالتطبيق تلقائياً
         if [ ! -f "app/build.gradle" ]; then
