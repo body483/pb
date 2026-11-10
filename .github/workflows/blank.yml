@@ -26,7 +26,7 @@ jobs:
         if [ -z "$PROJECT_DIR" ]; then
           echo "Error: settings.gradle not found!"
           exit 1
-        end
+        fi
         
         cd "$PROJECT_DIR"
         
