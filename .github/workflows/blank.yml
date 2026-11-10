@@ -18,28 +18,117 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Find and Build APK Automatically
+    - name: Auto-organize and Build Android Project
       run: |
-        PROJECT_DIR=$(find . -name "settings.gradle" -exec dirname {} \; | head -n 1)
-        echo "Found project directory at: $PROJECT_DIR"
+        echo "Setting up project structure..."
+        mkdir -p app/src/main/java/com/body483/pornblocker
+        mkdir -p app/src/main/res/xml
+        mkdir -p app/src/main/res/values
+
+        # نقل ملفات الأكواد إلى مجلدها الصحيح إذا وجدت في الرئيسية
+        find . -maxdepth 1 -name "*.kt" -exec mv {} app/src/main/java/com/body483/pornblocker/ \;
         
-        if [ -z "$PROJECT_DIR" ]; then
-          echo "Error: settings.gradle not found!"
-          exit 1
+        # نقل ملف الـ Manifest إذا وجد في الرئيسية
+        if [ -f "AndroidManifest.xml" ]; then
+          mv AndroidManifest.xml app/src/main/
         fi
-        
-        cd "$PROJECT_DIR"
-        
-        if [ -f "./gradlew" ]; then
-          chmod +x ./gradlew
-          ./gradlew :app:assembleDebug || ./gradlew assembleDebug
-        else
-          sudo apt-get update && sudo apt-get install -y gradle
-          gradle assembleDebug
+
+        # نقل ملفات الـ XML إلى مجلد res/xml
+        find . -maxdepth 1 -name "*.xml" ! -name "AndroidManifest.xml" -exec mv {} app/src/main/res/xml/ \;
+
+        # إنشاء ملف settings.gradle تلقائياً
+        if [ ! -f "settings.gradle" ]; then
+          cat << 'EOF' > settings.gradle
+        pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        rootProject.name = "PornBlocker"
+        include ':app'
+        EOF
         fi
+
+        # إنشاء ملف build.gradle الرئيسي تلقائياً
+        if [ ! -f "build.gradle" ]; then
+          cat << 'EOF' > build.gradle
+        buildscript {
+            ext.kotlin_version = '1.9.0'
+            repositories {
+                google()
+                mavenCentral()
+            }
+            dependencies {
+                classpath 'com.android.tools.build:gradle:8.1.1'
+                classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+            }
+        }
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        EOF
+        fi
+
+        # إنشاء ملف build.gradle الخاص بالتطبيق تلقائياً
+        if [ ! -f "app/build.gradle" ]; then
+          cat << 'EOF' > app/build.gradle
+        plugins {
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+        }
+        android {
+            namespace 'com.body483.pornblocker'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.body483.pornblocker"
+                minSdk 26
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+            kotlinOptions {
+                jvmTarget = '17'
+            }
+        }
+        dependencies {
+            implementation 'androidx.core:core-ktx:1.12.0'
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.9.0'
+        }
+        EOF
+        fi
+
+        # إنشاء strings.xml إذا لم يكن موجوداً
+        if [ ! -f "app/src/main/res/values/strings.xml" ]; then
+          cat << 'EOF' > app/src/main/res/values/strings.xml
+        <resources>
+            <string name="app_name">Porn Blocker</string>
+        </resources>
+        EOF
+        fi
+
+        # بناء التطبيق واستخراج الـ APK
+        gradle wrapper
+        ./gradlew assembleDebug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: '**/build/outputs/apk/debug/*.apk'
+        path: app/build/outputs/apk/debug/*.apk
