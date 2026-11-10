@@ -22,11 +22,11 @@ jobs:
       run: |
         if [ -f "./gradlew" ]; then
           chmod +x ./gradlew
-          ./gradlew assembleDebug
+          ./gradlew :app:assembleDebug
         else
           echo "Gradle wrapper not found, installing gradle..."
           sudo apt-get update && sudo apt-get install -y gradle
-          gradle assembleDebug
+          gradle :app:assembleDebug
         fi
 
     - name: Upload APK Artifact
