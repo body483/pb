@@ -18,42 +18,33 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Ultimate Guaranteed Build Script
+    - name: Clean and Build Simple APK
       run: |
-        echo "Cleaning and setting up guaranteed project structure..."
+        echo "Setting up clean project structure..."
         rm -rf app
         mkdir -p app/src/main/java/com/body483/pornblocker
-        mkdir -p app/src/main/res/xml
         mkdir -p app/src/main/res/values
 
-        # إنشاء MainActivity نظيف وخالي من أي أخطاء برمجية
+        # إنشاء كود بسيط جداً للـ MainActivity
         cat << 'EOF' > app/src/main/java/com/body483/pornblocker/MainActivity.kt
         package com.body483.pornblocker
 
+        import android.app.Activity
         import android.os.Bundle
-        import androidx.appcompat.app.AppCompatActivity
 
-        class MainActivity : AppCompatActivity() {
+        class MainActivity : Activity() {
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
-                setContentView(android.R.layout.simple_list_item_1)
             }
         }
         EOF
 
-        # إنشاء AndroidManifest.xml صحيح ومتكامل
+        # إنشاء Manifest بسيط
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
             <application
-                android:allowBackup="true"
-                android:icon="@mipmap/ic_launcher"
-                android:label="Porn Blocker"
-                android:roundIcon="@mipmap/ic_launcher_round"
-                android:supportsRtl="true"
-                android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
-                
+                android:label="Porn Blocker">
                 <activity
                     android:name=".MainActivity"
                     android:exported="true">
@@ -62,9 +53,7 @@ jobs:
                         <category android:name="android.intent.category.LAUNCHER" />
                     </intent-filter>
                 </activity>
-
             </application>
-
         </manifest>
         EOF
 
@@ -109,7 +98,7 @@ jobs:
         }
         EOF
 
-        # إعدادات app/build.gradle
+        # إعدادات app/build.gradle بدون تبعيات معقدة
         cat << 'EOF' > app/build.gradle
         plugins {
             id 'com.android.application'
@@ -132,14 +121,9 @@ jobs:
             kotlinOptions {
                 jvmTarget = '17'
             }
-            lint {
-                abortOnError false
-            }
         }
         dependencies {
             implementation 'androidx.core:core-ktx:1.12.0'
-            implementation 'androidx.appcompat:appcompat:1.6.1'
-            implementation 'com.google.android.material:material:1.9.0'
         }
         EOF
 
@@ -155,7 +139,7 @@ jobs:
         unzip -q gradle-8.5-bin.zip
         export PATH=$PWD/gradle-8.5/bin:$PATH
 
-        echo "Building APK successfully..."
+        echo "Building APK..."
         gradle assembleDebug
 
     - name: Upload APK Artifact
