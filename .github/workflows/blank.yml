@@ -18,28 +18,99 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Ultimate Bypass and Build APK
+    - name: Build App with Toggle Test Mode
       run: |
-        echo "Setting up clean project structure..."
+        echo "Setting up project structure..."
         rm -rf app
         mkdir -p app/src/main/java/com/body483/pornblocker
         mkdir -p app/src/main/res/values
 
-        # إنشاء كود بسيط للـ MainActivity
+        # إنشاء واجهة تحتوي على زر تجربة تفاعلي للتحكم والتشغيل والإيقاف
         cat << 'EOF' > app/src/main/java/com/body483/pornblocker/MainActivity.kt
         package com.body483.pornblocker
 
         import android.app.Activity
+        import android.content.Intent
+        import android.net.Uri
         import android.os.Bundle
+        import android.provider.Settings
+        import android.widget.Button
+        import android.widget.LinearLayout
+        import android.widget.TextView
+        import android.widget.Toast
 
         class MainActivity : Activity() {
+            private var isTestModeActive = false
+
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
+                
+                val layout = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(50, 80, 50, 50)
+                }
+
+                val title = TextView(this).apply {
+                    text = "Porn Blocker - لوحة التحكم"
+                    textSize = 22f
+                    setPadding(0, 0, 0, 30)
+                }
+                layout.addView(title)
+
+                val statusText = TextView(this).apply {
+                    text = "حالة الحظر: متوقف (غير مفعل)"
+                    textSize = 16f
+                    setPadding(0, 0, 0, 30)
+                }
+                layout.addView(statusText)
+
+                val btnToggleTest = Button(this).apply {
+                    text = "بدء التجربة الفعّالة"
+                    setOnClickListener {
+                        isTestModeActive = !isTestModeActive
+                        if (isTestModeActive) {
+                            text = "إيقاف التجربة"
+                            statusText.text = "حالة الحظر: قيد التجربة الفعّالة ✅"
+                            Toast.makeText(this@MainActivity, "تم تفعيل وضع التجربة، يمكنك اختباره الآن.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            text = "بدء التجربة الفعّالة"
+                            statusText.text = "حالة الحظر: متوقف (غير مفعل)"
+                            Toast.makeText(this@MainActivity, "تم إيقاف وضع التجربة بنجاح.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                layout.addView(btnToggleTest)
+
+                val btnSettings = Button(this).apply {
+                    text = "إعدادات الأمان (Accessibility)"
+                    setOnClickListener {
+                        try {
+                            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                            startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(this@MainActivity, "تعذر فتح الإعدادات تلقائياً", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                layout.addView(btnSettings)
+
+                val btnUninstall = Button(this).apply {
+                    text = "إلغاء تثبيت التطبيق (عند التعارض)"
+                    setOnClickListener {
+                        val intent = Intent(Intent.ACTION_DELETE).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(intent)
+                    }
+                }
+                layout.addView(btnUninstall)
+
+                setContentView(layout)
             }
         }
         EOF
 
-        # إنشاء Manifest بسيط
+        # إنشاء AndroidManifest.xml
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -57,7 +128,7 @@ jobs:
         </manifest>
         EOF
 
-        # إنشاء ملف gradle.properties لمنع مشاكل التحقق والتحصين نهائياً
+        # إعدادات gradle.properties
         cat << 'EOF' > gradle.properties
         android.useAndroidX=true
         android.enableJetifier=true
@@ -106,7 +177,7 @@ jobs:
         }
         EOF
 
-        # إعدادات app/build.gradle مع تخطي جميع الفحوصات
+        # إعدادات app/build.gradle
         cat << 'EOF' > app/build.gradle
         plugins {
             id 'com.android.application'
@@ -151,7 +222,7 @@ jobs:
         unzip -q gradle-8.5-bin.zip
         export PATH=$PWD/gradle-8.5/bin:$PATH
 
-        echo "Building APK successfully..."
+        echo "Building APK..."
         gradle assembleDebug
 
     - name: Upload APK Artifact
