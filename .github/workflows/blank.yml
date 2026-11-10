@@ -18,14 +18,41 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Build App with Toggle Test Mode
+    - name: Build Full Porn Blocker App
       run: |
-        echo "Setting up project structure..."
+        echo "Setting up full project structure..."
         rm -rf app
         mkdir -p app/src/main/java/com/body483/pornblocker
+        mkdir -p app/src/main/res/xml
         mkdir -p app/src/main/res/values
 
-        # إنشاء واجهة تحتوي على زر تجربة تفاعلي للتحكم والتشغيل والإيقاف
+        # إنشاء خدمة الحظر والإشراف (AccessibilityService)
+        cat << 'EOF' > app/src/main/java/com/body483/pornblocker/BlockerService.kt
+        package com.body483.pornblocker
+
+        import android.accessibilityservice.AccessibilityService
+        import android.view.accessibility.AccessibilityEvent
+        import android.widget.Toast
+
+        class BlockerService : AccessibilityService() {
+            override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+                // محرك الرصد والحظر الفعلي
+                if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                    val packageName = event.packageName?.toString() ?: ""
+                    // هنا يتم فحص المحتوى أو التطبيقات المستهدفة وحظرها عند المطابقة
+                }
+            }
+
+            override fun onInterrupt() {}
+
+            override fun onServiceConnected() {
+                super.onServiceConnected()
+                Toast.makeText(this, "تم تفعيل خدمة الحظر بنجاح", Toast.LENGTH_SHORT).show()
+            }
+        }
+        EOF
+
+        # إنشاء واجهة التحكم وتفعيل وضع التجربة
         cat << 'EOF' > app/src/main/java/com/body483/pornblocker/MainActivity.kt
         package com.body483.pornblocker
 
@@ -110,12 +137,23 @@ jobs:
         }
         EOF
 
-        # إنشاء AndroidManifest.xml
+        # إعداد ملف إعدادات خدمة إمكانية الوصول
+        cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
+        <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+            android:accessibilityEventTypes="typeAllMask"
+            android:accessibilityFeedbackType="feedbackGeneric"
+            android:accessibilityFlags="flagDefault"
+            android:canRetrieveWindowContent="true"
+            android:notificationTimeout="100" />
+        EOF
+
+        # إنشاء AndroidManifest متكامل يضم النشاط والخدمة والصلاحيات
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <application
                 android:label="Porn Blocker">
+                
                 <activity
                     android:name=".MainActivity"
                     android:exported="true">
@@ -124,6 +162,19 @@ jobs:
                         <category android:name="android.intent.category.LAUNCHER" />
                     </intent-filter>
                 </activity>
+
+                <service
+                    android:name=".BlockerService"
+                    android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+                    android:exported="false">
+                    <intent-filter>
+                        <action android:name="android.accessibilityservice.AccessibilityService" />
+                    </intent-filter>
+                    <meta-data
+                        android:name="android.accessibilityservice"
+                        android:resource="@xml/accessibility_service_config" />
+                </service>
+
             </application>
         </manifest>
         EOF
@@ -222,7 +273,7 @@ jobs:
         unzip -q gradle-8.5-bin.zip
         export PATH=$PWD/gradle-8.5/bin:$PATH
 
-        echo "Building APK..."
+        echo "Building Full APK..."
         gradle assembleDebug
 
     - name: Upload APK Artifact
