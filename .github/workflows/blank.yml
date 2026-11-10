@@ -18,19 +18,23 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Check and Build with Gradle
+    - name: Find and Build APK
       run: |
+        # البحث عن مكان ملف البناء وإتمام العملية تلقائياً
         if [ -f "./gradlew" ]; then
           chmod +x ./gradlew
           ./gradlew :app:assembleDebug
+        elif [ -f "app/build.gradle" ]; then
+          gradle assembleDebug
         else
-          echo "Gradle wrapper not found, installing gradle..."
-          sudo apt-get update && sudo apt-get install -y gradle
-          gradle :app:assembleDebug
+          echo "Searching for build.gradle..."
+          find . -name "build.gradle"
+          gradle wrapper
+          ./gradlew assembleDebug
         fi
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: app/build/outputs/apk/debug/*.apk
+        path: '**/build/outputs/apk/debug/*.apk'
