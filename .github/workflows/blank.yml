@@ -18,19 +18,24 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Find and Build APK
+    - name: Find and Build APK Automatically
       run: |
-        # البحث عن مكان ملف البناء وإتمام العملية تلقائياً
+        PROJECT_DIR=$(find . -name "settings.gradle" -exec dirname {} \; | head -n 1)
+        echo "Found project directory at: $PROJECT_DIR"
+        
+        if [ -z "$PROJECT_DIR" ]; then
+          echo "Error: settings.gradle not found!"
+          exit 1
+        end
+        
+        cd "$PROJECT_DIR"
+        
         if [ -f "./gradlew" ]; then
           chmod +x ./gradlew
-          ./gradlew :app:assembleDebug
-        elif [ -f "app/build.gradle" ]; then
-          gradle assembleDebug
+          ./gradlew :app:assembleDebug || ./gradlew assembleDebug
         else
-          echo "Searching for build.gradle..."
-          find . -name "build.gradle"
-          gradle wrapper
-          ./gradlew assembleDebug
+          sudo apt-get update && sudo apt-get install -y gradle
+          gradle assembleDebug
         fi
 
     - name: Upload APK Artifact
