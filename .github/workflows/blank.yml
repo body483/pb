@@ -18,46 +18,73 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Build Full Porn Blocker App
+    - name: Build Modern UI App
       run: |
-        echo "Setting up full project structure..."
+        echo "Setting up project structure..."
         rm -rf app
         mkdir -p app/src/main/java/com/body483/pornblocker
         mkdir -p app/src/main/res/xml
         mkdir -p app/src/main/res/values
 
-        # إنشاء خدمة الحظر والإشراف (AccessibilityService)
+        # خدمة الحظر الفعلية
         cat << 'EOF' > app/src/main/java/com/body483/pornblocker/BlockerService.kt
         package com.body483.pornblocker
 
         import android.accessibilityservice.AccessibilityService
         import android.view.accessibility.AccessibilityEvent
+        import android.view.accessibility.AccessibilityNodeInfo
         import android.widget.Toast
 
         class BlockerService : AccessibilityService() {
+            companion object {
+                var isBlockingActive = false
+            }
+
             override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-                // محرك الرصد والحظر الفعلي
-                if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-                    val packageName = event.packageName?.toString() ?: ""
-                    // هنا يتم فحص المحتوى أو التطبيقات المستهدفة وحظرها عند المطابقة
+                if (!isBlockingActive || event == null) return
+
+                val rootNode: AccessibilityNodeInfo = rootInActiveWindow ?: return
+                checkNodeForBlockedContent(rootNode)
+            }
+
+            private fun checkNodeForBlockedContent(node: AccessibilityNodeInfo) {
+                val text = node.text?.toString()?.lowercase() ?: ""
+                val blockedKeywords = listOf("porn", "xxx", "sex", "adult")
+
+                for (keyword in blockedKeywords) {
+                    if (text.contains(keyword)) {
+                        performGlobalAction(GLOBAL_ACTION_HOME)
+                        Toast.makeText(this, "تم حظر المحتوى بنجاح بواسطة التطبيق!", Toast.LENGTH_SHORT).show()
+                        break
+                    }
+                }
+
+                for (i in 0 until node.childCount) {
+                    val child = node.getChild(i)
+                    if (child != null) {
+                        checkNodeForBlockedContent(child)
+                        child.recycle()
+                    }
                 }
             }
 
             override fun onInterrupt() {}
-
+            
             override fun onServiceConnected() {
                 super.onServiceConnected()
-                Toast.makeText(this, "تم تفعيل خدمة الحظر بنجاح", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "خدمة الحظر تعمل الآن في الخلفية", Toast.LENGTH_SHORT).show()
             }
         }
         EOF
 
-        # إنشاء واجهة التحكم وتفعيل وضع التجربة
+        # واجهة تحكم عصرية واحترافية بتصميم Dark Mode وأزرار دائرية
         cat << 'EOF' > app/src/main/java/com/body483/pornblocker/MainActivity.kt
         package com.body483.pornblocker
 
         import android.app.Activity
         import android.content.Intent
+        import android.graphics.Color
+        import android.graphics.drawable.GradientDrawable
         import android.net.Uri
         import android.os.Bundle
         import android.provider.Settings
@@ -67,77 +94,128 @@ jobs:
         import android.widget.Toast
 
         class MainActivity : Activity() {
-            private var isTestModeActive = false
-
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 
-                val layout = LinearLayout(this).apply {
+                val rootLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     setPadding(50, 80, 50, 50)
+                    setBackgroundColor(Color.parseColor("#0F172A")) // خلفية داكنة عصرية
                 }
 
                 val title = TextView(this).apply {
-                    text = "Porn Blocker - لوحة التحكم"
-                    textSize = 22f
-                    setPadding(0, 0, 0, 30)
+                    text = "🛡️ Porn Blocker"
+                    textSize = 26f
+                    setTextColor(Color.WHITE)
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                    setPadding(0, 0, 0, 10)
                 }
-                layout.addView(title)
+                rootLayout.addView(title)
+
+                val subtitle = TextView(this).apply {
+                    text = "لوحة التحكم وحماية الجهاز"
+                    textSize = 14f
+                    setTextColor(Color.parseColor("#94A3B8"))
+                    setPadding(0, 0, 0, 40)
+                }
+                rootLayout.addView(subtitle)
+
+                // بطاقة الحالة
+                val statusCard = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = GradientDrawable().apply {
+                        setColor(Color.parseColor("#1E293B"))
+                        cornerRadius = 24f
+                    }
+                    setPadding(40, 35, 40, 35)
+                }
 
                 val statusText = TextView(this).apply {
-                    text = "حالة الحظر: متوقف (غير مفعل)"
-                    textSize = 16f
-                    setPadding(0, 0, 0, 30)
+                    text = if (BlockerService.isBlockingActive) "حالة الحظر: يعمل بفاعلية ✅" else "حالة الحظر: متوقف (فعّل الأمان أولاً)"
+                    textSize = 15f
+                    setTextColor(if (BlockerService.isBlockingActive) Color.parseColor("#4ADE80") else Color.parseColor("#F87171"))
+                    setTypeface(null, android.graphics.Typeface.BOLD)
                 }
-                layout.addView(statusText)
+                statusCard.addView(statusText)
 
-                val btnToggleTest = Button(this).apply {
-                    text = "بدء التجربة الفعّالة"
-                    setOnClickListener {
-                        isTestModeActive = !isTestModeActive
-                        if (isTestModeActive) {
-                            text = "إيقاف التجربة"
-                            statusText.text = "حالة الحظر: قيد التجربة الفعّالة ✅"
-                            Toast.makeText(this@MainActivity, "تم تفعيل وضع التجربة، يمكنك اختباره الآن.", Toast.LENGTH_SHORT).show()
-                        } else {
-                            text = "بدء التجربة الفعّالة"
-                            statusText.text = "حالة الحظر: متوقف (غير مفعل)"
-                            Toast.makeText(this@MainActivity, "تم إيقاف وضع التجربة بنجاح.", Toast.LENGTH_SHORT).show()
+                val cardParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 0, 0, 40)
+                }
+                rootLayout.addView(statusCard, cardParams)
+
+                // دالة مساعدة لإنشاء أزرار أنيقة ومستديرة
+                fun createStyledButton(buttonText: String, bgColor: String): Button {
+                    return Button(this).apply {
+                        text = buttonText
+                        textSize = 15f
+                        setTextColor(Color.WHITE)
+                        isAllCaps = false
+                        background = GradientDrawable().apply {
+                            setColor(Color.parseColor(bgColor))
+                            cornerRadius = 20f
+                        }
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            140
+                        ).apply {
+                            setMargins(0, 15, 0, 15)
                         }
                     }
                 }
-                layout.addView(btnToggleTest)
 
-                val btnSettings = Button(this).apply {
-                    text = "إعدادات الأمان (Accessibility)"
-                    setOnClickListener {
-                        try {
-                            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                            startActivity(intent)
-                        } catch (e: Exception) {
-                            Toast.makeText(this@MainActivity, "تعذر فتح الإعدادات تلقائياً", Toast.LENGTH_SHORT).show()
-                        }
+                // زر بدء وإيقاف التجربة
+                val btnToggleTest = createStyledButton(
+                    if (BlockerService.isBlockingActive) "إيقاف الحظر التجريبي" else "بدء التجربة الفعّالة",
+                    "#3B82F6"
+                )
+                btnToggleTest.setOnClickListener {
+                    BlockerService.isBlockingActive = !BlockerService.isBlockingActive
+                    if (BlockerService.isBlockingActive) {
+                        btnToggleTest.text = "إيقاف الحظر التجريبي"
+                        statusText.text = "حالة الحظر: يعمل بفاعلية ✅"
+                        statusText.setTextColor(Color.parseColor("#4ADE80"))
+                        Toast.makeText(this, "تم تفعيل محرك الحظر بنجاح.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        btnToggleTest.text = "بدء التجربة الفعّالة"
+                        statusText.text = "حالة الحظر: متوقف (فعّل الأمان أولاً)"
+                        statusText.setTextColor(Color.parseColor("#F87171"))
+                        Toast.makeText(this, "تم إيقاف محرك الحظر.", Toast.LENGTH_SHORT).show()
                     }
                 }
-                layout.addView(btnSettings)
+                rootLayout.addView(btnToggleTest)
 
-                val btnUninstall = Button(this).apply {
-                    text = "إلغاء تثبيت التطبيق (عند التعارض)"
-                    setOnClickListener {
-                        val intent = Intent(Intent.ACTION_DELETE).apply {
-                            data = Uri.parse("package:$packageName")
-                        }
+                // زر إعدادات الأمان
+                val btnSettings = createStyledButton("1. تفعيل صلاحيات الأمان (Accessibility)", "#059669")
+                btnSettings.setOnClickListener {
+                    try {
+                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                         startActivity(intent)
+                        Toast.makeText(this, "ابحث عن Porn Blocker وقم بتفعيله", Toast.LENGTH_LONG).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "تعذر فتح الإعدادات تلقائياً", Toast.LENGTH_SHORT).show()
                     }
                 }
-                layout.addView(btnUninstall)
+                rootLayout.addView(btnSettings)
 
-                setContentView(layout)
+                // زر إلغاء التثبيت
+                val btnUninstall = createStyledButton("إلغاء تثبيت التطبيق فوراً", "#EF4444")
+                btnUninstall.setOnClickListener {
+                    val intent = Intent(Intent.ACTION_DELETE).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                }
+                rootLayout.addView(btnUninstall)
+
+                setContentView(rootLayout)
             }
         }
         EOF
 
-        # إعداد ملف إعدادات خدمة إمكانية الوصول
+        # إعدادات إمكانية الوصول
         cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
         <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
             android:accessibilityEventTypes="typeAllMask"
@@ -147,39 +225,30 @@ jobs:
             android:notificationTimeout="100" />
         EOF
 
-        # إنشاء AndroidManifest متكامل يضم النشاط والخدمة والصلاحيات
+        # AndroidManifest
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <application
-                android:label="Porn Blocker">
-                
-                <activity
-                    android:name=".MainActivity"
-                    android:exported="true">
+            <application android:label="Porn Blocker">
+                <activity android:name=".MainActivity" android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
                         <category android:name="android.intent.category.LAUNCHER" />
                     </intent-filter>
                 </activity>
-
-                <service
-                    android:name=".BlockerService"
+                <service android:name=".BlockerService"
                     android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
                     android:exported="false">
                     <intent-filter>
                         <action android:name="android.accessibilityservice.AccessibilityService" />
                     </intent-filter>
-                    <meta-data
-                        android:name="android.accessibilityservice"
-                        android:resource="@xml/accessibility_service_config" />
+                    <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_service_config" />
                 </service>
-
             </application>
         </manifest>
         EOF
 
-        # إعدادات gradle.properties
+        # ملفات بناء المشروع
         cat << 'EOF' > gradle.properties
         android.useAndroidX=true
         android.enableJetifier=true
@@ -187,93 +256,56 @@ jobs:
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # إعدادات settings.gradle
         cat << 'EOF' > settings.gradle
-        pluginManagement {
-            repositories {
-                google()
-                mavenCentral()
-                gradlePluginPortal()
-            }
-        }
-        dependencyResolutionManagement {
-            repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
-            repositories {
-                google()
-                mavenCentral()
-            }
-        }
+        pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+        dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.PREFER_PROJECT); repositories { google(); mavenCentral() } }
         rootProject.name = "PornBlocker"
         include ':app'
         EOF
 
-        # إعدادات build.gradle الرئيسي
         cat << 'EOF' > build.gradle
         buildscript {
             ext.kotlin_version = '1.9.0'
-            repositories {
-                google()
-                mavenCentral()
-            }
+            repositories { google(); mavenCentral() }
             dependencies {
                 classpath 'com.android.tools.build:gradle:8.1.1'
                 classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
             }
         }
-        allprojects {
-            repositories {
-                google()
-                mavenCentral()
-            }
-        }
+        allprojects { repositories { google(); mavenCentral() } }
         EOF
 
-        # إعدادات app/build.gradle
         cat << 'EOF' > app/build.gradle
         plugins {
             id 'com.android.application'
             id 'org.jetbrains.kotlin.android'
         }
-        android {
-            namespace 'com.body483.pornblocker'
-            compileSdk 34
-            defaultConfig {
-                applicationId "com.body483.pornblocker"
-                minSdk 26
-                targetSdk 34
-                versionCode 1
-                versionName "1.0"
-            }
-            compileOptions {
-                sourceCompatibility JavaVersion.VERSION_17
-                targetCompatibility JavaVersion.VERSION_17
-            }
-            kotlinOptions {
-                jvmTarget = '17'
-            }
-            lint {
-                abortOnError false
-                checkReleaseBuilds false
-            }
+        android.namespace = 'com.body483.pornblocker'
+        android.compileSdk = 34
+        android.defaultConfig {
+            applicationId "com.body483.pornblocker"
+            minSdk 26
+            targetSdk 34
+            versionCode 1
+            versionName "1.0"
         }
-        dependencies {
-            implementation 'androidx.core:core-ktx:1.12.0'
+        android.compileOptions {
+            sourceCompatibility JavaVersion.VERSION_17
+            targetCompatibility JavaVersion.VERSION_17
         }
+        android.kotlinOptions { jvmTarget = '17' }
+        android.lint { abortOnError false; checkReleaseBuilds false }
+        dependencies { implementation 'androidx.core:core-ktx:1.12.0' }
         EOF
 
-        # strings.xml
         cat << 'EOF' > app/src/main/res/values/strings.xml
-        <resources>
-            <string name="app_name">Porn Blocker</string>
-        </resources>
+        <resources><string name="app_name">Porn Blocker</string></resources>
         EOF
 
-        echo "Downloading Gradle 8.5..."
         wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
         unzip -q gradle-8.5-bin.zip
         export PATH=$PWD/gradle-8.5/bin:$PATH
 
-        echo "Building Full APK..."
         gradle assembleDebug
 
     - name: Upload APK Artifact
